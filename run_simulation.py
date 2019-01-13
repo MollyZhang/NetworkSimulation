@@ -1,23 +1,58 @@
 import argparse
+import numpy as np
+
 
 
 def main():
     args = parse_args()
-    node_states, send_probs = initialize_network(args.num_nodes)
-    for slot in range(args.time_steps):
-        print(".", end="")
+    network = Network(args.num_nodes)
+    for i in range(args.time_steps):
+        network.slot()
+    print(network.get_bandwidth())
+
+
+class Node(object):
+    def __init__(self, init_prob):
+        self.history = []
+        self.x = init_prob
+
+    def send(self):
+        return np.random.choice([0, 1], p=[1-self.x, self.x])
+
+    def add_to_history(self, status):
+        self.history.append(status)
 
 
 
-def initialize_network(num_nodes):
-    """
-    return: states and probabilities of sending packets for each node
-    """
-    node_states = None
-    send_probs = {i:1/num_nodes for i in range(num_nodes)}
-    return node_states, send_probs
-
-
+class Network(object):
+    def __init__(self, n):
+        self.n = n
+        self.nodes = [Node(1/n) for i in range(n)]
+        self.history = []       
+ 
+    def slot(self):
+        send_status = [i.send() for i in self.nodes]
+        self.decide_outcome(send_status)
+            
+    def decide_outcome(self, send_status):
+        if sum(send_status) == 0:
+            self.history.append("E")
+            for node in self.nodes:
+                node.add_to_history("E")
+        elif sum(send_status) > 1:
+            self.history.append("C")
+            for node in self.nodes:
+                node.add_to_history("C")
+        elif sum(send_status) == 1:
+            self.history.append("Y")
+            for i, node in enumerate(self.nodes):
+                if send_status[i] == 1:
+                    node.add_to_history("Y")
+                else:
+                    node.add_to_history("O")
+    
+    def get_bandwidth(self):
+        return self.history.count("Y")/len(self.history)
 
 
 
@@ -30,8 +65,6 @@ def parse_args():
                         help="number of steps (time slots) to run the simulation")
     args = parser.parse_args()
     return args
-
-
 
 
 
